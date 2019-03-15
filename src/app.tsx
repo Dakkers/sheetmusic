@@ -1,20 +1,34 @@
 import * as React from 'react';
-// import './css/App.css';
-import { Collapse, DropdownItem, DropdownMenu, DropdownToggle, Navbar, NavbarBrand, Nav, NavItem, NavLink, UncontrolledDropdown } from 'reactstrap';
+import {
+  Collapse,
+  DropdownItem,
+  DropdownMenu,
+  DropdownToggle,
+  Modal,
+  Navbar,
+  NavbarBrand,
+  Nav,
+  NavItem,
+  NavLink,
+  UncontrolledDropdown
+} from 'reactstrap';
+import { createStore } from 'redux'
+import { Provider as ReduxProvider } from 'react-redux'
+import { connect } from 'react-redux'
 
+import rootReducer from './js/reducers'
+import { toggleModal } from './js/actions'
 
-const Navbar2 = () => {
+import SettingsModal from './js/components/SettingsModal';
+import Staff from './js/components/Staff';
+
+const store = createStore(rootReducer)
+
+const Navbar2 = (props) => {
   return (
-    <Navbar color="light" light expand="md">
-      <NavbarBrand href="/">reactstrap</NavbarBrand>
+    <Navbar color="light" light expand="sm">
       <Collapse isOpen={true} navbar>
-        <Nav className="ml-auto" navbar>
-          <NavItem>
-            <NavLink href="/components/">Components</NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink href="https://github.com/reactstrap/reactstrap">GitHub</NavLink>
-          </NavItem>
+        <Nav className="mr-auto" navbar>
           <UncontrolledDropdown nav inNavbar>
             <DropdownToggle nav caret>
               Options
@@ -38,13 +52,48 @@ const Navbar2 = () => {
   );
 }
 
-export class App extends React.Component<undefined, undefined> {
+const VisibleNavbar2 = connect(
+  null,
+  (dispatch) => ({
+    toggleModal: (val: boolean) => dispatch(toggleModal(val))
+  })
+)(Navbar2)
+
+class App extends React.Component<{}, {}> {
   render() {
     return (
       <div>
-        <Navbar2/>
-        <h2>Welcome to React with Typescript!</h2>
+        <VisibleNavbar2/>
+
+        <SettingsModal/>
+
+        <Staff/>
       </div>
     );
+  }
+
+  componentDidMount () {
+    this.listenForMIDIDevices();
+  }
+
+  listenForMIDIDevices () {
+    navigator.requestMIDIAccess()
+    .then(function(access) {
+      console.log('access', access);
+      console.log(Array.from(access.inputs.values()));
+      access.onstatechange = function(e) {
+        console.log(Array.from(this.inputs.values()));
+      }
+    })
+  }
+}
+
+export class ExportedApp extends React.Component<{}, {}> {
+  render () {
+    return (
+      <ReduxProvider store={store}>
+        <App/>
+      </ReduxProvider>
+     )
   }
 }

@@ -1,2 +1,40 @@
+$theme-colors: (
+);
+
+$navbar-height: 30px;
+$navbar-padding-vertical: 0;
+
 @import "node_modules/bootstrap/scss/bootstrap";
-$lol: #333333;
+
+.navbar {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.nav-link {
+  padding-bottom: 0;
+  padding-top: 0;
+}
+
+$navbar-padding-vertical: 0;
+
+.staff {
+  position: relative;
+
+  .staff-line {
+    position: absolute;
+    border-bottom: 1px solid black;
+    min-height: 16px;
+    width: 100%;
+
+    &:nth-child(1) {
+      top: 0;
+    }
+    &:nth-child(2) {
+      top: 16px;
+    }
+    &:nth-child(3) {
+      top: 32px;
+    }
+  }
+}
