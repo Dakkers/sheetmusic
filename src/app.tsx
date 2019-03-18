@@ -12,14 +12,15 @@ import {
   NavLink,
   UncontrolledDropdown
 } from 'reactstrap';
-import { createStore } from 'redux'
-import { Provider as ReduxProvider } from 'react-redux'
-import { connect } from 'react-redux'
+import { createStore } from 'redux';
+import { Provider as ReduxProvider } from 'react-redux';
+import { connect } from 'react-redux';
 
-import rootReducer from './js/reducers'
-import { toggleModal } from './js/actions'
+import rootReducer from './js/reducers';
+import { toggleModal } from './js/actions';
 
 import SettingsModal from './js/components/SettingsModal';
+import MIDIBinder from './js/components/MIDIBinder';
 import Staff from './js/components/Staff';
 
 const store = createStore(rootReducer)
@@ -63,6 +64,8 @@ class App extends React.Component<{}, {}> {
   render() {
     return (
       <div>
+        <MIDIBinder/>
+
         <VisibleNavbar2/>
 
         <SettingsModal/>
@@ -70,21 +73,6 @@ class App extends React.Component<{}, {}> {
         <Staff/>
       </div>
     );
-  }
-
-  componentDidMount () {
-    this.listenForMIDIDevices();
-  }
-
-  listenForMIDIDevices () {
-    navigator.requestMIDIAccess()
-    .then(function(access) {
-      console.log('access', access);
-      console.log(Array.from(access.inputs.values()));
-      access.onstatechange = function(e) {
-        console.log(Array.from(this.inputs.values()));
-      }
-    })
   }
 }
 
@@ -94,6 +82,6 @@ export class ExportedApp extends React.Component<{}, {}> {
       <ReduxProvider store={store}>
         <App/>
       </ReduxProvider>
-     )
+    );
   }
 }

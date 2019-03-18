@@ -1,8 +1,8 @@
 import { combineReducers } from 'redux'
 import modalVisibility from './todos'
-import main from './main'
+import midi from './midi'
 
 export default combineReducers({
-  main,
+  midi,
   modalVisibility
 })

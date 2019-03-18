@@ -1,5 +1,7 @@
-import * as React from 'react';
 import { fabric } from 'fabric';
+import * as React from 'react';
+import { connect } from 'react-redux';
+import { isEqual as _isEqual } from 'lodash';
 
 const CANVAS_WIDTH : number = 400;
 
@@ -31,7 +33,7 @@ function mapPitchToYPosition (pitch: string) {
       multiplier = 1;
       break;
     case 'E5':
-      multiplier = -0;
+      multiplier = 0;
       break;
     case 'D5':
       multiplier = -1;
@@ -57,6 +59,9 @@ function mapPitchToYPosition (pitch: string) {
     case 'D4':
       multiplier = -8;
       break;
+    case 'C4':
+      multiplier = -9;
+      break;
     default:
       multiplier = 0;
   }
@@ -64,8 +69,9 @@ function mapPitchToYPosition (pitch: string) {
   return STAFF_Y_POS - (multiplier * (LINE_GAP_PX / 2));
 }
 
-export default class Staff extends React.Component<
+class Staff extends React.Component<
   {
+    midiKeys: Array<string>
   },
   {
     hasStarted: boolean,
@@ -80,7 +86,8 @@ export default class Staff extends React.Component<
 
     this.state = {
       hasStarted: false,
-      notes: []
+      notes: [],
+      score: 0
     };
   }
 
@@ -89,6 +96,8 @@ export default class Staff extends React.Component<
       <div className='mb-4'>
         <button className="btn btn-primary" onClick={() => this.start()}>Start</button>
       </div>
+
+      <h3>Score: {this.state.score}</h3>
 
       <div className="border">
         <canvas id="c" width={CANVAS_WIDTH} height="400"></canvas>
@@ -114,6 +123,17 @@ export default class Staff extends React.Component<
     });
   }
 
+  componentDidUpdate (prevProps, prevState) {
+    if (!_isEqual(this.props.midiKeys, prevProps.midiKeys)) {
+      if (this.props.midiKeys.length > 0) {
+        console.log(prevProps.midiKeys, '-->', this.props.midiKeys)
+        this.processKeys(this.props.midiKeys)
+      }
+    }
+  }
+
+  // -- Actions
+
   start () {
     if (this.state.hasStarted) {
       return;
@@ -123,12 +143,13 @@ export default class Staff extends React.Component<
 
     setInterval(
       () => this.addNote(),
-      1000
+      2500
     );
   }
 
   addNote () {
     const pitches = [
+      'C4',
       'D4',
       'E4',
       'F4',
@@ -151,23 +172,87 @@ export default class Staff extends React.Component<
         top: mapPitchToYPosition(pitch)
       });
 
-      newNoteCanvasObject.animate('left', `-100`, {
+      newNoteCanvasObject.animate('left', `-16`, {
         easing: linearEasing,
         onChange: this.canvas.renderAll.bind(this.canvas),
-        onComplete: () => this.canvas.remove(newNoteCanvasObject),
+        onComplete: (a,b,c,d) => {
+          console.log(a,b,c,d)
+          this.expireCurrentNote(newNoteCanvasObject)
+        },
         duration: 5000
       });
-
-      this.canvas.add(newNoteCanvasObject);
 
       const newNote = {
         canvasObject: newNoteCanvasObject,
         pitch
       };
 
-      this.state.notes.push(newNote);
+      this.setState({ notes: [...this.state.notes, newNote] }, () => {
+        this.canvas.add(newNoteCanvasObject);
+      });
     });
+  }
 
-    // this.canvas.add(this.wholeNoteSVG);
+  processKeys (keys: Array<string>) {
+    console.log('processKeys() -- notes.length =', this.state.notes.length)
+    let newScore : number = this.state.score;
+
+    if (this.state.notes.length === 0) {
+      newScore -= 1;
+      this.setState({ score: newScore })
+      return;
+    }
+
+    const currentNote = this.state.notes[0];
+    console.log('currentNote =', currentNote)
+    let unshiftCurrentNote : bool = false;
+
+    for (const key of keys) {
+      if (key === currentNote.pitch) {
+        newScore += 1;
+        unshiftCurrentNote = true;
+      } else {
+        newScore -= 1;
+      }
+    }
+
+    const newState = { score: newScore };
+    if (unshiftCurrentNote) {
+      newState.notes = this.state.notes.slice(1)
+    }
+
+    this.setState(newState, () => {
+      if (unshiftCurrentNote) {
+        this.canvas.remove(currentNote.canvasObject)
+      }
+    })
+  }
+
+  expireCurrentNote (currentNoteCanvasObject) {
+    if (this.state.notes.length === 0) {
+      return;
+    }
+
+    const currentNote = this.state.notes[0]
+
+    if (currentNoteCanvasObject !== currentNote.canvasObject) {
+      return;
+    }
+
+    console.log('expireCurrentNote()', currentNote)
+    this.setState({
+      score: this.state.score - 1,
+      notes: this.state.notes.slice(1)
+    }, () => {
+      this.canvas.remove(currentNote.canvasObject)
+    })
   }
 }
+
+export default connect(
+  (state) => {
+    return {
+      midiKeys: state.midi.midiKeysPressed
+    }
+  }
+)(Staff)

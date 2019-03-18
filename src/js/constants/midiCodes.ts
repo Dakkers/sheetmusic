@@ -88,3 +88,5 @@ const MIDI_CODE_TO_NOTE_MAPPING: Record<string, string> = {
   '107': 'B7',
   '108': 'C8',
 };
+
+export default MIDI_CODE_TO_NOTE_MAPPING;
