@@ -50,7 +50,7 @@ export default connect(
   null,
   (dispatch) => {
     return {
-      onMidiDevicesChanged: (midiDevices) => dispatch(setMidiDevices(midiDevices)),
+      onMidiDevicesChanged: (midiDevices: Array<WebMidi.MIDIInput>) => dispatch(setMidiDevices(midiDevices)),
       onMidiKeyUp: (key: string) => dispatch(setMidiKeyUp(key)),
       onMidiKeyDown: (key: string) => dispatch(setMidiKeyDown(key)),
     };

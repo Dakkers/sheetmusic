@@ -1,7 +1,10 @@
 import { fabric } from 'fabric';
 import * as React from 'react';
 import { connect } from 'react-redux';
-import { isEqual as _isEqual } from 'lodash';
+import {
+  isEqual as _isEqual,
+  range as _range
+} from 'lodash';
 
 const CANVAS_WIDTH : number = 400;
 
@@ -12,7 +15,29 @@ function linearEasing (t: number, b: number, c: number, d: number) {
   return c*t/d + b;
 }
 
-function createLine (y: number) {
+function getDistanceFromC (pitch1: string) {
+  const note : string = pitch1[0];
+  switch (note) {
+    case 'C':
+      return 0;
+    case 'D':
+      return 1;
+    case 'E':
+      return 2;
+    case 'F':
+      return 3;
+    case 'G':
+      return 4;
+    case 'A':
+      return 5;
+    case 'B':
+      return 6;
+    default:
+      throw new Error(`Invalid note: ${note}`);
+  }
+}
+
+function createLedgerLine (y: number) {
   return new fabric.Line([0, y, CANVAS_WIDTH, y], {
     fill: 'black',
     stroke: 'black',
@@ -22,10 +47,86 @@ function createLine (y: number) {
   });
 }
 
-function mapPitchToYPosition (pitch: string) {
+function createOutOfRangeLedgerLines (num: number) {
+  const positions : Array<number> = _range(num, 0);
+
+  return positions.map((pos: number) => {
+    // return new fabric.Line([0, pos * LINE_GAP_PX, 24, pos * LINE_GAP_PX], {
+    return new fabric.Line([10, 8, 36, 8], {
+      fill: 'black',
+      stroke: 'black',
+      strokeWidth: 1,
+      selectable: false,
+      evented: false,
+    })
+  });
+}
+
+function calculateNumberOfLedgerLines (clef: string, pitch: string) {
+  if (clef === 'treble') {
+    switch (pitch) {
+      case 'C#7':
+      case 'C7':
+      case 'B6':
+        return 5;
+      case 'A#6':
+      case 'A6':
+      case 'G#6':
+      case 'G6':
+        return 4;
+      case 'F#6':
+      case 'F6':
+      case 'E6':
+        return 3;
+      case 'D#6':
+      case 'D6':
+      case 'C#6':
+      case 'C6':
+        return 2;
+      case 'B5':
+      case 'A#5':
+      case 'A5':
+        return 1;
+      case 'C4':
+      case 'B3':
+        return -1;
+      case 'A#3':
+      case 'A3':
+      case 'G#3':
+      case 'G3':
+        return -2;
+      case 'F#3':
+      case 'F3':
+      case 'E3':
+        return -3;
+      case 'D#3':
+      case 'D3':
+      case 'C#3':
+      case 'C3':
+        return -4;
+      case 'B2':
+        return -5;
+    }
+  }
+
+  return 0;
+}
+
+function mapPitchToYPosition (clef: string, pitch: string) {
   let multiplier : number;
 
+  let base : number;
+
+  if (clef === 'treble') {
+    base = -2;
+  }
+
   switch (pitch) {
+    case 'A#5':
+    case 'A5':
+      multiplier = 3;
+      break;
+    case 'G#5':
     case 'G5':
       multiplier = 2;
       break;
@@ -71,11 +172,14 @@ function mapPitchToYPosition (pitch: string) {
 
 class Staff extends React.Component<
   {
+    allowedNotes: Array<string>
+    clef: string,
     midiKeys: Array<string>
   },
   {
     hasStarted: boolean,
-    notes: Array<object>
+    notes: Array<object>,
+    score: number
   }
 > {
   wholeNoteSVG : fabric.Object;
@@ -109,11 +213,11 @@ class Staff extends React.Component<
     this.canvas = new fabric.StaticCanvas('c');
 
     this.canvas.add(
-      createLine(STAFF_Y_POS + (0 * LINE_GAP_PX)),
-      createLine(STAFF_Y_POS + (1 * LINE_GAP_PX)),
-      createLine(STAFF_Y_POS + (2 * LINE_GAP_PX)),
-      createLine(STAFF_Y_POS + (3 * LINE_GAP_PX)),
-      createLine(STAFF_Y_POS + (4 * LINE_GAP_PX)),
+      createLedgerLine(STAFF_Y_POS + (0 * LINE_GAP_PX)),
+      createLedgerLine(STAFF_Y_POS + (1 * LINE_GAP_PX)),
+      createLedgerLine(STAFF_Y_POS + (2 * LINE_GAP_PX)),
+      createLedgerLine(STAFF_Y_POS + (3 * LINE_GAP_PX)),
+      createLedgerLine(STAFF_Y_POS + (4 * LINE_GAP_PX)),
     );
 
     fabric.loadSVGFromURL('./img/whole-note.svg', (objects, options) => {
@@ -148,51 +252,58 @@ class Staff extends React.Component<
   }
 
   addNote () {
-    const pitches = [
-      'C4',
-      'D4',
-      'E4',
-      'F4',
-      'G4',
-      'A4',
-      'B4',
-      'C5',
-      'D5',
-      'E5',
-      'F5',
-      'G5',
-    ];
+    const clef = this.props.clef;
+    const pitches = this.props.allowedNotes;
 
     this.wholeNoteSVG.clone((newNoteCanvasObject) => {
       const pitch : string = pitches[Math.floor(Math.random() * pitches.length)];
+      const numberOfLedgerLines = calculateNumberOfLedgerLines(clef, pitch);
+      const additionalLedgerLines = createOutOfRangeLedgerLines(numberOfLedgerLines);
+      // const additionalLedgerLines = []
+
+      for (const blah of additionalLedgerLines) {
+        blah.set({
+          originX: 'center',
+          originY: 'top',
+        })
+      }
+
       console.log('creating note with pitch', pitch)
 
-      newNoteCanvasObject.set({
+      const group = new fabric.Group([ newNoteCanvasObject, ...additionalLedgerLines ], {
         left: CANVAS_WIDTH,
-        top: mapPitchToYPosition(pitch)
+        top: mapPitchToYPosition(clef, pitch),
+        hasBorders: true,
+        backgroundColor: 'pink'
       });
 
-      newNoteCanvasObject.animate('left', `-16`, {
+      newNoteCanvasObject.set({
+        top: -LINE_GAP_PX / 2,
+        left: 0,
+        originX: 'center',
+        originY: 'top',
+      });
+
+      group.animate('left', `-16`, {
         easing: linearEasing,
         onChange: this.canvas.renderAll.bind(this.canvas),
-        onComplete: (a,b,c,d) => {
-          console.log(a,b,c,d)
-          this.expireCurrentNote(newNoteCanvasObject)
+        onComplete: () => {
+          this.expireCurrentNote(group)
         },
         duration: 5000
       });
 
       const newNote = {
-        canvasObject: newNoteCanvasObject,
+        canvasObject: group,
         pitch
       };
 
       this.setState({ notes: [...this.state.notes, newNote] }, () => {
-        this.canvas.add(newNoteCanvasObject);
+        this.canvas.add(group);
       });
     });
   }
-
+newNoteCanvasObject
   processKeys (keys: Array<string>) {
     console.log('processKeys() -- notes.length =', this.state.notes.length)
     let newScore : number = this.state.score;
@@ -205,7 +316,7 @@ class Staff extends React.Component<
 
     const currentNote = this.state.notes[0];
     console.log('currentNote =', currentNote)
-    let unshiftCurrentNote : bool = false;
+    let unshiftCurrentNote : boolean = false;
 
     for (const key of keys) {
       if (key === currentNote.pitch) {
@@ -252,6 +363,8 @@ class Staff extends React.Component<
 export default connect(
   (state) => {
     return {
+      allowedNotes: state.settings.notes,
+      clef: state.settings.clef,
       midiKeys: state.midi.midiKeysPressed
     }
   }
